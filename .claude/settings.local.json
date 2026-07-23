@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p src/controllers src/services src/utils src/logger src/config src/tests data logs .github/workflows && echo ok)",
+      "Bash(command -v brew)",
+      "Bash(brew list *)",
+      "Read(//opt/homebrew/**)",
+      "Read(//Users/apple/**)",
+      "Read(//usr/local/opt/**)",
+      "Bash(brew install *)",
+      "Bash(npm -v)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(npm test *)",
+      "Bash(timeout 5 node src/index.js)",
+      "Bash(curl -s http://localhost:3000/health)",
+      "Read(//private/tmp/**)",
+      "Bash(rm -f logs/app-*.json)",
+      "Bash(command -v docker)",
+      "Bash(docker info *)"
+    ],
+    "additionalDirectories": [
+      "/Users/apple/Desktop/dev/io2script/src"
+    ]
+  }
+}

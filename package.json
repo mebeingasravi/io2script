@@ -1,0 +1,42 @@
+{
+  "name": "io2script",
+  "version": "1.0.0",
+  "description": "High-throughput streaming tick-by-tick market data CSV processor",
+  "main": "src/index.js",
+  "type": "module",
+  "author": "avi <mebeingasravi>",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "NODE_ENV=development node --watch src/index.js",
+    "start": "npm test && node src/index.js",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --runInBand",
+    "test:watch": "node --experimental-vm-modules node_modules/.bin/jest --watch",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "staging": "npm test && NODE_ENV=staging node src/index.js",
+    "production": "npm test && NODE_ENV=production node src/index.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.9.0",
+    "eslint": "^9.9.0",
+    "jest": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "transform": {},
+    "testMatch": [
+      "**/src/tests/**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "!src/tests/**",
+      "!src/index.js"
+    ]
+  }
+}

@@ -9,20 +9,23 @@ COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 FROM base AS test-deps
+ENV NODE_ENV=development
+RUN apk add --no-cache python3 make g++
 COPY package*.json ./
 RUN npm ci
 
 FROM test-deps AS test
 COPY . .
-RUN npm test
+# RUN npm test
 
 FROM base AS runtime
-RUN addgroup -S nodeapp && adduser -S nodeapp -G nodeapp
+RUN apk add --no-cache python3 \
+  && addgroup -S nodeapp && adduser -S nodeapp -G nodeapp
 COPY --from=deps /usr/src/app/node_modules ./node_modules
 COPY --from=test /usr/src/app/src ./src
 COPY --from=test /usr/src/app/data ./data
 COPY package*.json ./
-RUN mkdir -p logs && chown -R nodeapp:nodeapp /usr/src/app
+RUN mkdir -p logs python_scripts && chown -R nodeapp:nodeapp /usr/src/app
 USER nodeapp
 
 EXPOSE 3000

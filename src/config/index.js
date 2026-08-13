@@ -22,6 +22,21 @@ const config = Object.freeze({
     // Read buffer size for the file stream, tuned for high-throughput line reads.
     highWaterMark: 64 * 1024,
   },
+  db: {
+    url: process.env.DATABASE_URL || 'postgres://io2script:io2script@localhost:5432/io2script',
+    logging: process.env.DB_LOGGING === 'true',
+  },
+  jwt: {
+    secret: process.env.JWT_SECRET || 'change-this-secret-in-production',
+    expiresIn: process.env.JWT_EXPIRES_IN || '1d',
+  },
+  python: {
+    executable: process.env.PYTHON_EXECUTABLE || 'python3',
+    scriptsDir: path.resolve(process.cwd(), process.env.PYTHON_SCRIPTS_DIR || 'python_scripts'),
+  },
+  cron: {
+    scriptSchedule: process.env.SCRIPT_CRON_SCHEDULE || '* * * * *',
+  },
 });
 
 export default config;

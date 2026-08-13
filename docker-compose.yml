@@ -1,4 +1,21 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: io2script-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${DB_USER:-io2script}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-io2script}
+      - POSTGRES_DB=${DB_NAME:-io2script}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-io2script}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   io2script:
     build:
       context: .
@@ -6,6 +23,9 @@ services:
     image: io2script:latest
     container_name: io2script
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "${PORT:-3000}:${PORT:-3000}"
     environment:
@@ -13,12 +33,23 @@ services:
       - INPUT_FILE=${INPUT_FILE:-data/sample.csv}
       - LOG_PATH=${LOG_PATH:-logs}
       - NODE_ENV=${NODE_ENV:-production}
+      - DATABASE_URL=${DATABASE_URL:-postgres://io2script:io2script@postgres:5432/io2script}
+      - DB_LOGGING=${DB_LOGGING:-false}
+      - JWT_SECRET=${JWT_SECRET:-change-this-secret-in-production}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-1d}
+      - PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE:-python3}
+      - PYTHON_SCRIPTS_DIR=${PYTHON_SCRIPTS_DIR:-python_scripts}
+      - SCRIPT_CRON_SCHEDULE=${SCRIPT_CRON_SCHEDULE:-* * * * *}
     volumes:
       - ./data:/usr/src/app/data:ro
       - ./logs:/usr/src/app/logs
+      - ./python_scripts:/usr/src/app/python_scripts
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:' + (process.env.PORT || 3000) + '/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s
+
+volumes:
+  postgres-data:

@@ -17,7 +17,10 @@
       "Read(//private/tmp/**)",
       "Bash(rm -f logs/app-*.json)",
       "Bash(command -v docker)",
-      "Bash(docker info *)"
+      "Bash(docker info *)",
+      "Read(//Users/apple/Desktop/dev/**)",
+      "Bash(find /Users/apple/Desktop/dev/GrowFinex_Backend-dev -maxdepth 2 -not -path \"*/node_modules*\" -not -path \"*/.git*\" | sort | head -80)",
+      "Read(//Users/apple/Desktop/dev/GrowFinex_Backend-dev/**)"
     ],
     "additionalDirectories": [
       "/Users/apple/Desktop/dev/io2script/src"

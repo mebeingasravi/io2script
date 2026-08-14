@@ -47,75 +47,85 @@ function appendCronLog({ status, message, data = {}, meta = {} }) {
 }
 
 /**
- * Starts the recurring job that supervises active Python scripts: it asks
- * the service layer to ensure every script marked `running` in the
- * database actually has a live process, restarting any that have died.
+ * Spawns the file-copy python script once and logs the outcome to the
+ * shared cron log file. Shared by every scheduled trigger so the morning
+ * window (repeating pull + final sweep) all funnel through one code path.
  *
- * No database or process logic lives here — scheduling only. All work is
- * delegated to `ScriptService.ensureActiveScriptsRunning()`.
- *
- * @returns {import('node-cron').ScheduledTask}
+ * @param {string} scriptPath
  */
-export function startScriptCron() {
-	const schedule = (config && config.cron && config.cron.scriptSchedule) || '* * * * * *';
-	const scriptPath = path.resolve(process.cwd(), 'python_scripts', 'copy_file.py');
+function runCopyScript(scriptPath) {
+	const startedAt = Date.now();
+	try {
+		logger.info(`\x1b[33mStarting python script: ${scriptPath}\x1b[0m`);
 
-	const task = cron.schedule(schedule, async () => {
-		const startedAt = Date.now();
-		try {
-			logger.info(`\x1b[33mStarting python script: ${scriptPath}\x1b[0m`);
+		const proc = spawn('python3', [scriptPath], { cwd: process.cwd() });
 
-			const proc = spawn('python3', [scriptPath], { cwd: process.cwd() });
+		let stdout = '';
+		let stderr = '';
 
-			let stdout = '';
-			let stderr = '';
+		proc.stdout.on('data', (data) => {
+			stdout += data.toString();
+		});
 
-			proc.stdout.on('data', (data) => {
-				stdout += data.toString();
+		proc.stderr.on('data', (data) => {
+			stderr += data.toString();
+		});
+
+		proc.on('close', (code) => {
+			const status = code === 0 ? 'success' : 'error';
+			appendCronLog({
+				status,
+				message:
+					status === 'success'
+						? 'Python script completed successfully'
+						: `Python script exited with code ${code}`,
+				data: { stdout: stdout.trim(), stderr: stderr.trim() },
+				meta: { scriptPath, exitCode: code, pid: proc.pid, durationMs: Date.now() - startedAt },
 			});
+			logger.info(`Python script run completed (exit ${code})`);
+		});
 
-			proc.stderr.on('data', (data) => {
-				stderr += data.toString();
-			});
-
-			proc.on('close', (code) => {
-				const status = code === 0 ? 'success' : 'error';
-				appendCronLog({
-					status,
-					message:
-						status === 'success'
-							? 'Python script completed successfully'
-							: `Python script exited with code ${code}`,
-					data: { stdout: stdout.trim(), stderr: stderr.trim() },
-					meta: { scriptPath, exitCode: code, pid: proc.pid, durationMs: Date.now() - startedAt },
-				});
-				logger.info(`Python script run completed (exit ${code})`);
-			});
-
-			proc.on('error', (err) => {
-				appendCronLog({
-					status: 'error',
-					message: `Failed to start python script: ${err.message}`,
-					data: {},
-					meta: { scriptPath, durationMs: Date.now() - startedAt },
-				});
-				logger.error(`Failed to start python script: ${err.message}`);
-			});
-
-		} catch (err) {
+		proc.on('error', (err) => {
 			appendCronLog({
 				status: 'error',
-				message: `Script cron run failed: ${err.message}`,
+				message: `Failed to start python script: ${err.message}`,
 				data: {},
 				meta: { scriptPath, durationMs: Date.now() - startedAt },
 			});
-			logger.error(`Script cron run failed: ${err.message}`);
-		}
-	});
+			logger.error(`Failed to start python script: ${err.message}`);
+		});
+	} catch (err) {
+		appendCronLog({
+			status: 'error',
+			message: `Script cron run failed: ${err.message}`,
+			data: {},
+			meta: { scriptPath, durationMs: Date.now() - startedAt },
+		});
+		logger.error(`Script cron run failed: ${err.message}`);
+	}
+}
 
-	logger.info(`Python-run cron scheduled: "${schedule}"`);
+/**
+ * Starts the morning file-copy window: a repeating pull (default every 5
+ * minutes, 6:00-8:55) plus one final sweep at the end of the window
+ * (default 9:00:00 sharp), so files landing right up to the cutoff are
+ * still picked up. Both triggers run the same `copy_file.py`, which itself
+ * only copies files whose source mtime is before the 9 AM cutoff and skips
+ * anything already present at the destination.
+ *
+ * @returns {{ repeating: import('node-cron').ScheduledTask, final: import('node-cron').ScheduledTask }}
+ */
+export function startScriptCron() {
+	const schedule = (config && config.cron && config.cron.scriptSchedule) || '0 */5 6,7,8 * * *';
+	const endSchedule = (config && config.cron && config.cron.scriptEndSchedule) || '0 0 9 * * *';
+	const scriptPath = path.resolve(process.cwd(), 'python_scripts', 'copy_file.py');
 
-	return task;
+	const repeating = cron.schedule(schedule, async () => runCopyScript(scriptPath));
+	const final = cron.schedule(endSchedule, async () => runCopyScript(scriptPath));
+
+	logger.info(`Python-run cron scheduled: "${schedule}" (final sweep "${endSchedule}")`);
+
+	return { repeating, final };
 }
 
 export default startScriptCron;

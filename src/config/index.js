@@ -35,7 +35,11 @@ const config = Object.freeze({
     scriptsDir: path.resolve(process.cwd(), process.env.PYTHON_SCRIPTS_DIR || 'python_scripts'),
   },
   cron: {
-    scriptSchedule: process.env.SCRIPT_CRON_SCHEDULE || '* * * * *',
+    // Repeating pull during the morning window (e.g. every 5 min, 6:00-8:55).
+    scriptSchedule: process.env.SCRIPT_CRON_SCHEDULE || '0 */5 6,7,8 * * *',
+    // Final sweep at the end of the window (e.g. 9:00:00 sharp) so files
+    // landing right up to the cutoff are still picked up.
+    scriptEndSchedule: process.env.SCRIPT_CRON_END_SCHEDULE || '0 0 9 * * *',
   },
 });
 
